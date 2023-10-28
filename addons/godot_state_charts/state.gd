@@ -63,7 +63,7 @@ func _find_chart(parent:Node):
 ## Runs a transition either immediately or delayed depending on the 
 ## transition settings.
 func _run_transition(transition:Transition):
-	if transition.delay_seconds > 0:
+	if transition.delay_seconds > 0 or transition.wait_signal_name != &"":
 		_queue_transition(transition)
 	else:
 		_chart._run_transition(transition, self)
@@ -177,6 +177,13 @@ func _state_restore(saved_state:SavedState, child_levels:int = -1):
 	# and restore any pending transition
 	_pending_transition = get_node_or_null(our_saved_state.pending_transition_name) as Transition
 	_pending_transition_time = our_saved_state.pending_transition_time
+	if _pending_transition.wait_signal_name != &"":
+		_pending_transition.get_node(_pending_transition.wait_signal_node).connect(_pending_transition.wait_signal_name, func(): 
+			if _pending_transition.delay_seconds > 0:
+				_pending_transition_time = _pending_transition.delay_seconds
+			else:
+				_chart._run_transition(_pending_transition, self)
+			, CONNECT_ONE_SHOT)
 	
 	# if _pending_transition != null:
 	#	print("restored pending transition " + _pending_transition.name + " with time " + str(_pending_transition_time))
@@ -203,7 +210,7 @@ func _process(delta:float):
 	# emit the processing signal
 	state_processing.emit(delta)
 	# check if there is a pending transition
-	if _pending_transition != null:
+	if _pending_transition != null and _pending_transition_time != 0:
 		_pending_transition_time -= delta
 		
 		# Notify interested parties that currently a transition is pending.
@@ -263,7 +270,15 @@ func _queue_transition(transition:Transition):
 	# print("transitioning from " + name + " to " + transition.to.get_concatenated_names() + " in " + str(transition.delay_seconds) + " seconds" )
 	# queue the transition for the delay time (0 means next frame)
 	_pending_transition = transition
-	_pending_transition_time = transition.delay_seconds
+	if _pending_transition.wait_signal_name != &"":
+		transition.get_node(transition.wait_signal_node).connect(transition.wait_signal_name, func(): 
+			if transition.delay_seconds > 0:
+				_pending_transition_time = transition.delay_seconds
+			else:
+				_chart._run_transition(transition, self)
+			, CONNECT_ONE_SHOT)
+	else:
+		_pending_transition_time = transition.delay_seconds
 	
 	# enable processing when we have a transition
 	set_process(true)

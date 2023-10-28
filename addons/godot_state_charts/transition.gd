@@ -31,6 +31,17 @@ extends Node
 		delay_seconds = value
 		update_configuration_warnings()
 
+@export_group("Signal")
+
+@export var wait_signal_node:NodePath:
+	set(value):
+		wait_signal_node = value
+		update_configuration_warnings()
+
+@export var wait_signal_name:StringName = &"":
+	set(value):
+		wait_signal_name = value
+		update_configuration_warnings()
 
 ## Read-only property that returns true if the transition has an event specified.
 var has_event:bool:
